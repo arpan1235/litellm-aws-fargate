@@ -17,39 +17,69 @@ general_settings:
 litellm_settings:
   turn_off_message_logging: true
   global_disable_no_log_param: true
+  request_timeout: 6000  # Keep retrying until timeout occurs (important for priority queue)
 
 # -----------------------------------------------------
 # Global Model Configuration
 # -----------------------------------------------------
 model_defaults: &model_defaults
-  model: "bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0" # Bedrock inference profile (see https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html)
-  tpm: 20000
-  rpm: 5
-  aws_region_name: ${AWS_REGION}  
+  model: "bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0" # Bedrock inference profile (see https://docs.aws.amazon.com/bedrock/latest/userguide/inference-profiles-support.html)
+  tpm: 180000  # 90% of your 200,000 TPM limit - leaves safety margin
+  rpm: 18      # 90% of your 20 RPM limit - leaves safety margin  
+  aws_region_name: os.environ/AWS_REGION  
+  aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+  aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
 
 # -----------------------------------------------------
 # Model Instances Configuration
 # -----------------------------------------------------
 model_list:
   # Primary instance using default IAM role from ECS container
-  - model_name: "claude-3-7-load-balance"
+  #- model_name: "claude-4-load-balance"
+  #  litellm_params:
+  #    <<: *model_defaults
+  
+  # Additional instance with same config (helps distribute load)
+  - model_name: "claude-4-load-balance"
     litellm_params:
       <<: *model_defaults
   
-  # Add entries for each account want to use
-  # Each entry allows LiteLLM to assume a role in a different AWS account to access Bedrock
-  - model_name: "claude-3-7-load-balance"
+  # Claude 3.7 Sonnet model instance
+  - model_name: "claude-37-load-balance"
     litellm_params:
-      <<: *model_defaults
-      aws_session_name: "bedrock-ACCOUNT_2"
-      aws_role_name: "arn:aws:iam::ACCOUNT_2:role/bedrock-caller" # Replace with the role in Account 2 to assume. Make sure the role matches in the AWS CLI config file
+      model: "bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0"
+      tpm: 180000  # 90% of your 200,000 TPM limit - leaves safety margin
+      rpm: 24      # 90% of your 20 RPM limit - leaves safety margin  
+      aws_region_name: os.environ/AWS_REGION  
+      aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
+
+  # Claude 3.7 Sonnet model instance
+  - model_name: "claude-35-haiku-load-balance"
+    litellm_params:
+      model: "bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0"
+      tpm: 180000  # 90% of your 200,000 TPM limit - leaves safety margin
+      rpm: 24      # 90% of your 20 RPM limit - leaves safety margin  
+      aws_region_name: os.environ/AWS_REGION  
+      aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
+  
+  # More instances can be added here for cross-account access
+  # - model_name: "claude-4-load-balance"
+  #   litellm_params:
+  #     <<: *model_defaults
+  #     aws_session_name: "bedrock-ACCOUNT_2"
+  #     aws_role_name: "arn:aws:iam::ACCOUNT_2:role/bedrock-caller"
 
 # -----------------------------------------------------
-# Router Configuration
+# Router Configuration with Request Prioritization Support
 # -----------------------------------------------------
-router_settings:
-  routing_strategy: "least-busy" # ensures optimal distribution across accounts (see https://docs.litellm.ai/docs/routing)
-  health_check_interval: 30
-  timeout: 45
-  retries: 3
-  retry_after: 5
+#router_settings:
+  #routing_strategy: "usage-based-routing-v2"  # Required for priority queue support (replaces least-busy)
+  #health_check_interval: 30
+  #timeout: 45
+  #retries: 0
+  #retry_after: 5   # Back to reasonable backoff time with your higher limits
+  #polling_interval: 0.03  # Faster polling (30ms) - you have capacity for this
+  #num_retries: 3   # Standard retries - shouldn't need many with good limits
+  #allowed_fails: 2  # Standard failure tolerance

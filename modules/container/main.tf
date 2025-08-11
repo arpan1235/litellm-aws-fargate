@@ -16,7 +16,7 @@ resource "aws_ecr_repository" "repository" {
 locals {
   content_hash = substr(sha256(join("", [
     filesha256("${path.module}/image/Dockerfile"),
-    filesha256("${path.module}/image/litellm_config.yaml"),
+    filesha256("${path.module}/image/litellm_config_load_balance.yaml"),
     filesha256("${path.module}/image/entrypoint.sh")
   ])), 0, 8)
 
@@ -29,16 +29,12 @@ locals {
 resource "null_resource" "docker_build_and_push" {
   provisioner "local-exec" {
     working_dir = "${path.module}/image"
-    interpreter = ["/bin/bash", "-c"]
-    command     = "../build/build_and_push.sh"
-    environment = {
-      AWS_ACCOUNT_ID     = data.aws_caller_identity.current.account_id
-      AWS_REGION         = var.aws_region
-      REPOSITORY_NAME    = var.repository_name
-      ECR_REPOSITORY_URL = aws_ecr_repository.repository.repository_url
-      ECR_IMAGE          = local.ecr_image_uri
-      BUILD_ARGS         = join(" ", [for key, value in var.build_args : "--build-arg ${key}=${value}"])
-    }
+    interpreter = ["C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\powershell.exe", "-Command"]
+    command = <<-EOT
+      aws --region ${var.aws_region} ecr get-login-password | docker login --username AWS --password-stdin ${data.aws_caller_identity.current.account_id}.dkr.ecr.${var.aws_region}.amazonaws.com
+      docker buildx build --platform linux/amd64 -t "${local.ecr_image_uri}" -f Dockerfile . ${join(" ", [for key, value in var.build_args : "--build-arg ${key}=${value}"])} --load
+      docker push "${local.ecr_image_uri}"
+    EOT
   }
 
   triggers = {

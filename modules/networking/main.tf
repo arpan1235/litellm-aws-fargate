@@ -6,8 +6,9 @@ module "vpc" {
   cidr = var.vpc_cidr
 
   azs              = var.azs
-  private_subnets  = [for i, az in var.azs : cidrsubnet(var.vpc_cidr, 8, i)]
-  database_subnets = [for i, az in var.azs : cidrsubnet(var.vpc_cidr, 8, i + length(var.azs))]
+  public_subnets   = [for i, az in var.azs : cidrsubnet(var.vpc_cidr, 8, i)]
+  private_subnets  = [for i, az in var.azs : cidrsubnet(var.vpc_cidr, 8, i + length(var.azs))]
+  database_subnets = [for i, az in var.azs : cidrsubnet(var.vpc_cidr, 8, i + length(var.azs) * 2)]
 
   create_database_subnet_group = true
   enable_dns_hostnames         = true
@@ -16,12 +17,12 @@ module "vpc" {
   tags = var.tags
 }
 
-# Internal Application Load Balancer for HTTP termination
+# Public Application Load Balancer for API access
 resource "aws_lb" "alb" {
   name               = "${var.name}-alb"
-  internal           = true
+  internal           = false  # Changed to public
   load_balancer_type = "application"
-  subnets            = module.vpc.private_subnets
+  subnets            = module.vpc.public_subnets  # Changed to public subnets
   security_groups    = [aws_security_group.alb.id]
 
   enable_deletion_protection = false

@@ -1,4 +1,4 @@
-# LiteLLM Configuration
+# LiteLLM Configuration (see https://docs.litellm.ai/docs/proxy/config_settings)
 
 # -----------------------------------------------------
 # General application settings - Using Environment Variables from ECS Fargate
@@ -12,10 +12,12 @@ general_settings:
   disable_spend_logs: true
 
 # -----------------------------------------------------
-# Model Configuration
+# Model Configuration - (see https://docs.litellm.ai/docs/providers/bedrock for Bedrock details)
 # -----------------------------------------------------
 model_list:
-  - model_name: "claude-3-7"
+  - model_name: "claude-4"
     litellm_params:
-      model: "bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0" # Example using Claude 3.7
+      model: "bedrock/us.anthropic.claude-sonnet-4-20250514-v1:0" # Example using Claude 3.7 inference profile
+      aws_access_key_id: os.environ/AWS_ACCESS_KEY_ID
+      aws_secret_access_key: os.environ/AWS_SECRET_ACCESS_KEY
       aws_region_name: os.environ/AWS_REGION

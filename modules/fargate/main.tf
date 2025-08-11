@@ -1,7 +1,7 @@
 # Compute - ECS cluster configuration for LiteLLM service
 module "ecs" {
   source  = "terraform-aws-modules/ecs/aws"
-  version = "~> 5.12.0"
+  version = "~> 6.0"
 
   cluster_name = var.name
 
@@ -14,11 +14,10 @@ module "ecs" {
     }
   }
 
-  fargate_capacity_providers = {
+  default_capacity_provider_strategy = {
     FARGATE = {
-      default_capacity_provider_strategy = {
-        weight = 100
-      }
+      weight = 100
+      base   = 0
     }
   }
 
